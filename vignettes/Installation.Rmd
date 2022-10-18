@@ -1,0 +1,121 @@
+---
+title: "Installation Instructions for SRTpipeline"
+output: html_document
+---
+
+To install SRTpipeline, [R](https://www.r-project.org/) version 4.0 or greater is required. We also recommend installing [R Studio](https://www.rstudio.com/).
+
+# Install from CRAN 
+ 
+SRTpipeline is available on [CRAN](https://cran.r-project.org/package=SRTpipeline) for all platforms. To install, run: 
+
+```{r eval = FALSE}
+# Enter commands in R (or R studio, if installed)
+install.packages('SRTpipeline')
+library(SRTpipeline)
+```
+
+<!-- If you see the warning message below, enter `y`: -->
+
+<!-- ```{r eval=FALSE} -->
+<!-- package which is only available in source form, and may need compilation of C/C++/Fortran: 'SRTpipeline' -->
+<!-- Do you want to attempt to install these from sources? -->
+<!-- y/n: -->
+<!-- ``` -->
+
+# Install the development version of SRTpipeline
+
+Install the development version of SRTpipeline - directly from [GitHub](https://github.com/feiyoung/SRTpipeline/tree/develop).
+
+```{r eval = FALSE}
+# Enter commands in R (or R studio, if installed)
+# Install the remotes package
+install.packages('remotes')
+remotes::install_github(repo = 'feiyoung/SRTpipeline', ref = 'develop')
+library(SRTpipeline)
+```
+When users install `SRTpipeline`, the dependent R pacakges will be also installed automatically. 
+
+## Install dependent packages
+If dependent packages in CRAN (such as DR.SC) are not normally installed, then use the following command to install the dependent packages.
+
+`install.packages('remotes')`
+`remotes::install_github("feiyoung/DR.SC")`
+
+or install from [CRAN](https://cran.r-project.org/)
+
+`install.packages("DR.SC")`
+
+
+The package can be loaded with the command:
+```{r  eval=TRUE}
+library("DR.SC")
+```
+
+
+
+# Installation Instructions
+
+## <i class="fa fa-windows" aria-hidden="true"></i> Installing on Windows
+
+You can install the stable version of `{SRTpipeline}` from CRAN: 
+
+`install.packages("SRTpipeline")`
+
+, or the development version (containing the latest improvements and bug fixes) 
+from GitHub:
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+install.packages("remotes")
+library(remotes)
+install_github("feiyoung/SRTpipeline")
+```
+
+## <i class="fa fa-linux" aria-hidden="true"></i> Installing on Linux Systems
+
+To install `{SRTpipeline}` on Linux, you need to be able to install the `{sf}` package, 
+which requires several dependencies. See [here](https://github.com/r-spatial/sf#installing)
+if you have trouble installing `{sf}`. 
+
+Then, you can install the stable version of SRTpipeline from CRAN:
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+install.packages("SRTpipeline")
+```
+, or the development version (containing the latest improvements and bug fixes) 
+from GitHub:
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+library(devtools)
+install_github("feiyoung/SRTpipeline")
+```
+
+## <i class="fa fa-apple" aria-hidden="true"></i> Installing on Mac
+
+
+To install `{SRTpipeline}` on Mac, you need to be able to install the `{sf}` package, 
+which requires several dependencies. See [here](https://github.com/r-spatial/sf#installing)
+if you have trouble installing `{sf}`. 
+
+Then, you can install the stable version of `{SRTpipeline}` from CRAN:
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+install.packages("SRTpipeline")
+```
+, or the development version (containing the latest improvements and bug fixes) 
+from GitHub:
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+library(devtools)
+install_github("feiyoung/SRTpipeline")
+```
+
+# Usage
+
+See vigenettes.
+
+
+# Code of Conduct
+
+Please note that this package is released with a [Contributor Code of Conduct](https://feiyoung.org/code-of-conduct/). 
+By contributing to this project, you agree to abide by its terms.

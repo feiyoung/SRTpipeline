@@ -1,0 +1,44 @@
+title: SRTpipeline
+url: https://github.com/feiyoung/SRTpipeline/
+template:
+  params:
+  bootswatch: flatly
+ganalytics: UA-84499524-2
+navbar:
+  type: inverse
+  left:
+    - icon: fa-home
+      href: index.html
+  right:
+    - text: "Install"
+      icon: fas fa-book
+      href: articles/Installation.html
+    - text: "Get Started"
+      icon: fas fa-book
+      href: articles/get_started.html
+    - text: "Single-sample \nAnalysis"
+      icon: fas fa-book
+      menu:
+        -  text: DLPFC tutorial
+           href: articles/dlpfc_tutorial.html
+        -  text: Spatial DR and clustering introduction
+           href: articles/DR_SC_introduction.html
+    - text: "Multiple-sample \nAnalysis"
+      icon: fas fa-book
+      menu:
+        -  text: DLPFC tutorial
+           href: articles/dlpfc_tutorial.html
+        -  text: Spatial DR and clustering introduction
+           href: articles/DR_SC_introduction.html
+    - text: "FAQ"
+      icon: fa-question-circle-o
+      href: articles/faq.html
+    - text: "News"
+      href: news/index.html
+    - icon: fa-file-code-o
+      text: "Functions"
+      href: reference/index.html
+
+extra_packages:
+  - DR.SC
+
