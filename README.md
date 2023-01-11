@@ -11,9 +11,34 @@ status](https://travis-ci.com/feiyoung/SRTpipeline.svg?branch=master)](https://t
 status](https://www.r-pkg.org/badges/version/SRTpipeline)](https://CRAN.R-project.org/package=SRTpipeline)
 <!-- badges: end -->
 
-The goal of SRTpipeline is to analyze spaitally resolved transcriptomics
-data based on a series of our developed methods from other R packages,
-such as DR.SC and PRECAST, and also provides the visualization tools.
+SRTpipeline is a powerful and easy-to-use R package for processing and
+analyzing spaitally resolved transcriptomics (SRT) data by providing
+step-by-step tutorials. SRTpipeline integrates a series of our developed
+methods and commonly used analyses tools. SRTpipline is able to handle
+single data batch and multiple data batches by considering the
+non-cellular effects such as batch effects.
+
+For single data batch, it has the following functions:
+
+-   (Spatial) dimension reduction
+-   Spatial clustering
+-   Joint dimension reduction and spatial clustering
+-   SRT embeddings for visualization
+-   DEG analysis
+-   Trajectory inference
+-   Conditional spaital variation analysis
+-   SRT deconvolution analysis
+
+For multiple data batches, it has the following functions:
+
+-   (Spatial) dimension reduction by removing batch effects
+-   Spatial clustering by removing batch effects
+-   SRT embeddings for visualization
+-   Recover comparable gene expression matrices among datasets
+-   Combined DEG analysis
+-   Combined trajectory inference
+
+------------------------------------------------------------------------
 
 Installation
 ------------
@@ -24,9 +49,9 @@ You can install the development version of SRTpipeline from
     # install.packages("devtools")
     devtools::install_github("feiyoung/SRTpipeline")
 
-SRTpipeline <img src='man/figures/logo.png' align="right" height="139" />
-=========================================================================
+------------------------------------------------------------------------
 
+<!-- # SRTpipeline <img src='man/figures/logo.png' align="right" height="139" /> -->
 <!-- badges: start -->
 
 [![](https://www.r-pkg.org/badges/version-ago/SRTpipeline)](https://cran.r-project.org/package=SRTpipeline)
@@ -37,14 +62,14 @@ Status](https://img.shields.io/codecov/c/github/feiyoung/SRTpipeline/master.svg)
 [![](https://badges.feiyoung.org/184_status.svg)](https://github.com/feiyoung/software-review/issues/184)
 <!-- badges: end -->
 
-[`SRTpipeline`](https://docs.feiyoung.org/SRTpipeline/) is a `R` package
-devoted to analyzing spatially resovled transcriptomics data.
+<!-- [`SRTpipeline`](https://docs.feiyoung.org/SRTpipeline/) is a `R` package devoted to -->
+<!-- analyzing spatially resovled transcriptomics data. -->
+<!-- <!-- <a href="http://www.irea.cnr.it/en/"> <img src="man/figures/irea_logo.png" height="40" align="left" /></a>  -->
 
-<!-- <a href="http://www.irea.cnr.it/en/"> <img src="man/figures/irea_logo.png" height="40" align="left" /></a>  -->
+–&gt;
 
-<span style="font-style:italic;font-weight:bold;">`{SRTpipeline}` was
-developed by XX. [It is dedicated to the memory of
-Lorenzo](https://docs.feiyoung.org/SRTpipeline/articles/lorenzo.html).</span>
+<!-- <span style='font-style:italic;font-weight:bold;'>`{SRTpipeline}` was developed by XX. -->
+<!-- [It is dedicated to the memory of Lorenzo](https://docs.feiyoung.org/SRTpipeline/articles/lorenzo.html).</span> -->
 
 Citation
 --------
@@ -64,11 +89,27 @@ single-cell RNA-seq and spatial transcriptomics data, Nucleic Acids
 Research, Volume 50, Issue 12, 8 July 2022, Page e72,
 <a href="https://doi.org/10.1093/nar/gkac219" class="uri">https://doi.org/10.1093/nar/gkac219</a>
 
+Wei Liu, Xu Liao, Ziye Luo, Yi Yang, Mai Chan Lau, Yuling Jiao, Xingjie
+Shi, Weiwei Zhai, Hongkai Ji, Joe Yeong, Jin Liu (2022). Probabilistic
+embedding and clustering with alignment for spatial transcriptomics data
+integration with PRECAST. bioRxiv.
+<a href="https://doi.org/10.1101/2022.06.26.497672" class="uri">https://doi.org/10.1101/2022.06.26.497672</a>
+
+Xiao Zhang, Wei Liu, Fangda Song and Jin Liu, iSC.MEB: an R package for
+multi-sample spatial clustering analysis of spatial transcriptomics
+data, 2022, In submission.
+
+Xingjie Shi, Yi Yang, Xiaohui Ma, Zhenxing Guo, Jin Liu, Probabilistic
+cell/domain-type assignment of spatial transcriptomics data with
+SpatialAnno, 2022
+
+------------------------------------------------------------------------
+
 Website
 -------
 
-For more information, documentation and examples of use, **see also the
+For more information, documentation and examples of use, see also the
 `{SRTpipeline}` website at
-[docs.feiyoung.org/SRTpipeline](https://docs.feiyoung.org/SRTpipeline/)**.
+[feiyoung/SRTpipeline](https://github.com/feiyoung/SRTpipeline).
 
 ------------------------------------------------------------------------
