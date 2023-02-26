@@ -1,0 +1,207 @@
+---
+title: "SpatialAnno for MOB"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Overview
+This tutorial demonstrates how to use `SRTpipeline` (>=0.1.0) to automatically annotate a spatially-resolved transcriptomics (SRT) data. The analytical pipelines are similar to the `SRTpipeline` workflow in DR-SC model [vegenettes](./index.html). We emphases how to use `SpatialAnno` model to achieve spatial embedding and annotation and its followed applications. This tutorial will cover the following tasks, which we believe will be common for many spatial analyses:
+
+* Normalization
+* Joint dimension reduction and annotation
+* Visualization
+* DEG analysis
+
+
+First, we load `SRTpipeline`.
+```{r init}
+library(SRTpipeline)
+```
+
+# Dataset
+We obtained the mouse olfactory bulb (OB) ST data from the spatial transcriptomics research website (https://www.spatialresearch.org/). This data consists of gene expression levels in form of read counts which are collected for a number of spatial locations. We followed to focus on the mouse OB section 12, which contains 16,034 genes and 282 spatial locations. The gene expression of mouse OB section 12 and ground truth are both stored in the R package `SpatialAnno`.
+
+## load the MOB dataset
+First, we load the MOB dataset and extract the position of each spot from spot name. The four anatomic layers manually annotated based on H&E staining was taken as ground truth.
+```{r echo=TRUE, eval = FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(SpatialAnno)
+load(paste0(path.package("SpatialAnno"), "/extdata/Rep12_MOB_count_matrix-1.RData"))
+print(MOB_raw[1:6,1:6])
+pos = cbind.data.frame(x=as.numeric(sapply(strsplit(colnames(MOB_raw),split="x"),"[",1)),
+                       y=as.numeric(sapply(strsplit(colnames(MOB_raw),split="x"),"[",2)))
+head(pos)
+load(paste0(path.package("SpatialAnno"), "/extdata/Rep12_MOB_manual_annotation.RData"))
+y2 = Rep12_MOB_manual_annotation
+y2[y2=="GCL"] = "GC"
+y2[y2=="MCL"] = "M/TC"
+y2[y2=="ONL"] = "OSNs"
+y2[y2=="GL"] = "PGC"
+table(y2)
+```
+
+
+# Pre-processing workflow
+
+## Create a SRTProject object
+
+First, we show how to create a SRTProject object step by step.
+```{r  eval = FALSE}
+## create count matrix list: note each component has a name, i.e., `MOB`.
+cntList <- list(MOB=MOB_raw)
+
+## create spatial coordinate matrix 
+row.names(pos) <- colnames(MOB_raw)
+coordList <- list(pos)
+
+## create metadata list
+meta.data <- data.frame(manual_annotation=y2)
+row.names(meta.data) <- colnames(MOB_raw)
+metadataList <- list(meta.data)
+
+## create meta data for each data batches. Here we only have one data batch.
+sampleMetadata <- data.frame(species="Mouse", tissues=c('Olfactory bulb'))
+row.names(sampleMetadata) <- names(cntList)
+
+## Name of this project
+projectName <- "MOB"
+
+rm(MOB_raw)
+```
+
+Next, we start creating SRTProject object. We can print the basic information of this object, including  three parts. The first part have the class of this object, outputPath of data that require to output, h5filePath that save the memory-cusuming data (i.e., count, logcount, ...). The second part is about the datasets basic information, such as how many data batches(sample) and the data names, sample meta data (sampleColData) and meta data for each spot (cellMetaData). The last part is about downstream analyses information that is empty when this object created.
+```{r  eval = FALSE}
+SRTProj <- CreateSRTProject(cntList, coordList, projectName =projectName, cellMetaDataList=metadataList,
+    sampleMetadata=sampleMetadata)
+SRTProj
+```   
+
+
+Then we read the cell-type-specific marker information and construct a cell type marker matrix. Top four DEGs of the scRNA-seq data from Gene Expression Omnibus (GEO;accession number GSE121891) are selected as markers based on log-fold change.
+```{r echo=TRUE, eval = FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+marker <- vector("list", 5)
+names(marker) = c("GC", "PGC", "M/TC", "OSNs", "EPL-IN")
+marker[[1]] = c("Gria2", "Meis2", "Prkca", "Penk")
+marker[[2]] = c("Nppa", "Nrsn1", "Nxph1", "Th")
+marker[[3]] = c("Cdhr1", "Slc17a7", "Olfm1", "Reln")
+marker[[4]] = c("Gng13", "S100a5", "Omp", "Fam213b")
+marker[[5]] = c("Kit", "Thy1",  "Dner", "Spock2")
+head(marker)
+```
+
+
+## Normalizing the data
+After creating the SRTProject, the next step is to normalize the data.  To save RAM memory, normalized values are stored in disk as a `h5file`.
+```{r  eval = FALSE}
+SRTProj <- normalizeSRT(SRTProj)
+```
+
+### Feature selection
+We next select a subset of genes that exhibit high spot-to-spot variation in the dataset (i.e, they are highly expressed in some spots, and lowly expressed in others). It has been  found that focusing on these genes in downstream analysis helps to highlight biological signal in single-cell datasets [here](https://www.nature.com/articles/nmeth.2645). In annotaion task, we found the variable features by exluding the marker gene list. The `SpatialAnno` model will use the selected variable features plus the marker gene list in the moelling process.
+
+```{r, eval = FALSE}
+## Check the features names
+row.names(SRTProj@geneMetaData)[1:10]
+
+SRTProj <- selectVariableFeatures(SRTProj, nfeatures = 2000, exclude_features = unlist(marker))
+head(SRTProj@geneMetaData)
+```
+
+###  Calculate the adjcence matrix
+Next, we define the neighbors for each spot by the spatial coordinates, which is represented by a sparse adjacency matrix (AdjMat) saved in the h5file. Because here the spatialcoordinates is not integer, we use general method to find the neighbors by setting the `platform = 'Other'`.
+We can check the saved sparse adjacency matrix using `h5ls()`.
+```{r  eval = FALSE}
+head(SRTProj@spatialCoords)
+## Obtain adjacence matrix
+SRTProj <- AddAdj(SRTProj, platform = "Other")
+h5ls(SRTProj@projectMetadata$h5filePath)
+```
+
+# Joint dimension reduction and spatial annotation using SpatialAnno model
+We fit the SpatialAnno model by using the top 2000 HVGs. Users can also use the top SVGs since we found the performance of using SVGs or HVGs has no significant difference for the downstream analyses, such as dimension reduction and spatial annotation. 
+
+Afeter finishing fitting, the SRTProject `SRTProj` has two more downstream analyses information: the low-dimensional embeddings `SpatialAnno` and inferred cell types, and they are saved in `SRTProj@reductions$SpatialAnno` and `SRTProj@clusters`, respectively.
+
+```{r, eval = FALSE}
+### Given K
+SRTProj <- Annotation_SpatialAnno(SRTProj, markers = marker, q=15, wpca_int=F)
+SRTProj
+table(SRTProj@clusters)
+```
+
+# Visualization
+
+Then, we visualize the spatial distribution of inferred cell types that shows the layer structure.
+```{r, eval = FALSE}
+cols_cluster <- c(chooseColors(n=5), 'gray')
+EachClusterSpaHeatMap(SRTProj, cols=cols_cluster, legend.position='right', pt_size =6 ,base_size=16)
+
+```
+
+Calculate the 3-dimensional tSNEs based on the extracted features from  SpatialAnno. 
+```{r, eval = FALSE}
+SRTProj <- AddTSNE(SRTProj, n_comp = 3, reduction = 'SpatialAnno')
+```
+We visualize the 3-dimensional tSNEs on the spatial coordinates using RGB colors. We can see there are apparent spatial pattern for the embeddings. Users can also plot the 3-dimensional  UMAP RGB plot similarly.
+```{r, eval = FALSE}
+EachRGBSpaHeatMap(SRTProj, plot_type ='tSNE', title_name = "tSNE RGB plot: ", pt_size=6)
+```
+
+Visualize the inferred cell types on the tSNE or UMAP.
+```{r, eval = FALSE}
+SRTProj <- AddTSNE(SRTProj, n_comp = 2, reduction='SpatialAnno')
+p_tsne2 <- EmbedPlot(SRTProj, item='cluster', plotEmbeddings = 'tSNE', cols=cols_cluster, 
+                     pt_size=3, legend.position='right')
+p_tsne2
+```
+
+```{r, eval = FALSE}
+SRTProj <- AddUMAP(SRTProj, n_comp = 2, reduction='SpatialAnno')
+p_umap2 <- EmbedPlot(SRTProj, item='cluster', plotEmbeddings = 'UMAP', 
+                     cols=cols_cluster, pt_size=3, legend.position='right')
+p_umap2
+```
+
+# DEG analysis
+To do downstream analyses, we require to get the count data from h5file. The function `getGeneSpotData()` access the gene-by-spot count matrix and other data in `SRTProj` and then return a `SpatialExperiment` object.
+```{r, eval = FALSE}
+spe <- getGeneSpotData(SRTProj)
+spe
+```
+We perform differential expression analysis for all clusters by using `FindAllDEGs()` function, then the DE genes' information is saved in a `DataFrame` object `dat_degs`. 
+```{r, eval = FALSE}
+dat_degs <- FindAllDEGs(spe, use_cluster = 'clusters')
+dat_degs
+```
+We identify the significant DE genes by two criteria: (a) adjustd p-value less than 0.01 and (b) average log fold change greater than 0.4.
+
+```{r, eval = FALSE}
+degs_sig <- subset(dat_degs, p_val_adj < 0.01 & avg_log2FC>0.5)
+degs_sig
+```
+We visualize the DE genes for each cell type group by gene-by-cell heatmap using the `GCHeatMap()` function.
+```{r, eval = FALSE}
+library(dplyr)
+n <- 5
+
+dat_degs %>% as.data.frame %>%
+  group_by(cluster) %>%
+  top_n(n = n, wt = avg_log2FC) -> topGene
+
+p1 <- GCHeatMap(spe, features=topGene$gene, grp_color=cols_cluster ,y_text_size=6, ncol.legend=1)
+p1
+```
+
+# Other downstream analyses
+
+
+<details>
+<summary>**Session Info**</summary>
+```{r}
+sessionInfo()
+```
+</details>
+

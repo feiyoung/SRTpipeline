@@ -1,0 +1,235 @@
+- category: Introduction
+  vignettes:
+    - title:  A basic overview for single data analyses --- taking DLPFC 151672 as an example
+      name: single_basic_tutorial
+      summary: |
+        A basic overview of SRTpipeline that includes an introduction to common analytical workflows.
+      image: umap_scmeb_dlpfc72.png
+    - title: A basic overview for multiple data analyses --- taking eight Liver ST datasets an example
+      name: multibatch_basic_tutorial
+      summary: |
+        Learn to integrate spatially-resolved transcriptomic data with examples from 10x Visium.
+      image: cluster_iscmeb_liver8.png
+    - title: Embedding and spatial clustering for single sample --- DLPFC 151672
+      name: dlpfc_tutorial
+      summary: |
+        An introduction to working with single SRT sample in SRTpipeline.
+      image: umap_drsc_dlpfc72.png
+
+- category: Single SRT Data Analyses
+  vignettes:
+    - title: SRT data clustering --- Embryo seqFISH dataset
+      name: single_Embryo_SC_tutorial
+      summary: |
+        An introduction to SC-MEB
+      image: cluster_scmeb_embryo3.png
+
+    - title: SRT  data embedding and clustering --- Embryo seqFISH dataset
+      name: single_Embryo_DRSC_tutorial
+      summary: |
+        Learn how to use DR-SC
+      image: umap_drsc_embryo3.png
+
+    - title: SRT data embedding and annotation
+      name: single_MOB_Anno_tutorial
+      summary: |
+        Learn how to use SpatailAnno
+      image: annotate_spatialAnno_mob.png
+
+
+
+
+- category: Mulitple SRT Data Integration
+  vignettes:
+    - title: Introduction to SRT integration --- eight Liver ST data
+      name: integration_introduction
+      summary: |
+        An introduction to integrating spatially resolved transcriptomics (SRT) datasets in order to identify and compare shared embeddings and cell types across experiments.
+      image: microrgb_precast_liver8.png
+
+    - title: SRT clustering and integration based on uncorrected PCs --- three DLPFC Visium data
+      name: multibatch_brain12_tutorial
+      summary: |
+        Learn how to rapidly integrate multiple SRT datasets, achieve spatial clustering and align embeddings using uncorrected PCs.
+      image: tsne_iscmeb_dlpfc3.png
+
+    - title: SRT embedding, clustering and integration based on normlized expression --- four hepatocellular carcinoma Visium data
+      name: multibatch_HCC4_tutorial
+      summary: |
+        Learn how to integrate multiple SRT datasets, achieve embeddings alignment and spatial clustering using normlized gene expression.
+      image: tsne_precast_hcc4.png
+
+    - title: SRT  clustering and integration based on uncorrected PCs --- eight mouse liver ST data
+      name: multibatch_basic_tutorial
+      summary: |
+        Analyze two human breast cancer data using integration method.
+      image: heatmap_cor_iscmeb_liver8.png
+
+    - title: SRT embedding, clustering and integration based on normlized expression --- two human breast cancer Visium datasets
+      name: multibatch_BS2_tutorial
+      summary: |
+        Annotate, visualize, and interpret an scATAC-seq experiment using scRNA-seq data from the same biological system.
+      image: tsne_precast_bc2.png
+
+
+    - title: Tips for integrating large datasets
+      name: integration_large_datasets
+      summary: |
+        Tips and examples for integrating very large scRNA-seq datasets (including >200,000 spots).
+      image: tsne_iscmeb_dlpfc12.png
+
+
+- category: Other
+  vignettes:
+    - title: Visualization
+      name: visualization_vignette
+      summary: |
+        An overview of the major visualization functionality within SRTpipeline.
+      image: visualization_vignette.jpg
+
+    - title: XX
+      name: cell_cycle_vignette
+      summary: |
+        XX examples
+      image: cell_cycle_vignette.jpg
+
+    - title: XX
+      name: de_vignette
+      summary: |
+        XX examples
+      image: assets/de_vignette.png
+
+    - title: XX
+      name: hashing_vignette
+      summary: |
+        XX examples
+      image: assets/hashing_vignette.png
+
+    - title: Interoperability with Other Analysis Tools
+      name: conversion_vignette
+      summary: |
+        Convert data between formats for different analysis tools.
+      image: assets/conversion_vignette.png
+
+    - title: Parallelization
+      name: future_vignette
+      summary: |
+        Speed up compute-intensive functions with parallelization.
+      image: assets/future_rocket.png
+
+- category: SRTpipeline Wrappers
+  hash: SRTpipeline-wrappers
+  description: |
+    In order to facilitate the use of community tools with SRTpipeline, we provide the SRTpipeline Wrappers package, which contains code to run other analysis tools on SRTpipeline objects. For the initial release, we provide wrappers for a few packages in the table below but would encourage other package developers interested in interfacing with SRTpipeline to check out our contributor guide [here](https://github.com/satijalab/SRTpipeline.wrappers/wiki/Submission-Process). <br><br>
+  vignettes:
+    - name: alevin
+      title: Import alevin counts into SRTpipeline
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/alevin.html
+      reference: https://doi.org/10.1186/s13059-019-1670-y
+      citation: Srivastava et. al., Genome Biology 2019
+      source: https://github.com/k3yavi/alevin-Rtools
+
+    - name: ALRA
+      title: Zero-preserving imputation with ALRA
+      link: https://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline.wrappers/blob/master/docs/alra.html
+      reference: https://doi.org/10.1101/397588
+      citation: Linderman et al, bioRxiv 2018
+      source: https://github.com/KlugerLab/ALRA
+
+    - name: CoGAPS
+      title: Running CoGAPS on SRTpipeline Objects
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/cogaps.html
+      reference: https://doi.org/10.1016/j.cels.2019.04.004
+      citation: Stein-O’Brien et al, Cell Systems 2019
+      source: https://www.bioconductor.org/packages/release/bioc/html/CoGAPS.html
+
+    - name: Conos
+      title: Integration of datasets using Conos
+      link: https://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline.wrappers/blob/master/docs/conos.html
+      reference: https://doi.org/10.1038/s41592-019-0466-z
+      citation: Barkas et al, Nature Methods 2019
+      source: https://github.com/hms-dbmi/conos
+
+    - name: fastMNN
+      title: Running fastMNN on SRTpipeline Objects
+      link: https://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline.wrappers/blob/master/docs/fast_mnn.html
+      reference: https://doi.org/10.1038/nbt.4091
+      citation: Haghverdi et al, Nature Biotechnology 2018
+      source: https://bioconductor.org/packages/release/bioc/html/scran.html
+
+    - name: glmpca
+      title: Running GLM-PCA on a SRTpipeline Object
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/glmpca.html
+      reference: https://doi.org/10.1186/s13059-019-1861-6
+      citation: Townes et al, Genome Biology 2019
+      source: https://github.com/willtownes/glmpca
+
+    - name: Harmony
+      title: Integration of datasets using Harmony
+      link: https://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline.wrappers/blob/master/docs/harmony.html
+      reference: https://doi.org/10.1038/s41592-019-0619-0
+      citation: Korsunsky et al, Nature Methods 2019
+      source: https://github.com/immunogenomics/harmony
+
+    - name: LIGER
+      title: Integrating SRTpipeline objects using LIGER
+      link: https://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline.wrappers/blob/master/docs/liger.html
+      reference: https://doi.org/10.1016/j.cell.2019.05.006
+      citation: Welch et al, Cell 2019
+      source: https://github.com/MacoskoLab/liger
+
+    - name: Monocle3
+      title: Calculating Trajectories with Monocle 3 and SRTpipeline
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/monocle3.html
+      reference: https://doi.org/10.1038/s41586-019-0969-x
+      citation: Cao et al, Nature 2019
+      source: https://cole-trapnell-lab.github.io/monocle3
+
+    - name: Nebulosa
+      title: Visualization of gene expression with Nebulosa
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/nebulosa.html
+      reference: https://github.com/powellgenomicslab/Nebulosa
+      citation: Jose Alquicira-Hernandez and Joseph E. Powell, Under Review
+      source: https://github.com/powellgenomicslab/Nebulosa
+
+    - name: schex
+      title: Using schex with SRTpipeline
+      link: https://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline.wrappers/blob/master/docs/schex.html
+      reference: https://doi.org/0.1242/dev.173807
+      citation: Freytag, R package 2019
+      source: https://github.com/SaskiaFreytag/schex
+
+    - name: scVelo
+      title: Estimating RNA Velocity using SRTpipeline and scVelo
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/scvelo.html
+      reference: https://doi.org/10.1101/820936
+      citation: Bergen et al, bioRxiv 2019
+      source: https://scvelo.readthedocs.io/
+
+    - name: Velocity
+      title: Estimating RNA Velocity using SRTpipeline
+      link: https://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline.wrappers/blob/master/docs/velocity.html
+      reference: 10.1038/s41586-018-0414-6
+      citation: La Manno et al, Nature 2018
+      source: https://velocyto.org
+
+    - name: CIPR
+      title: Using CIPR with human PBMC data
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/cipr.html
+      reference: https://doi.org/10.1186/s12859-020-3538-2
+      citation: Ekiz et. al., BMC Bioinformatics 2020
+      source: https://github.com/atakanekiz/CIPR-Package
+
+    - name: miQC
+      title: Running miQC on SRTpipeline objects
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/miQC.html
+      reference: https://www.biorxiv.org/content/10.1101/2021.03.03.433798v1
+      citation: Hippen et. al., bioRxiv 2021
+      source: https://github.com/greenelab/miQC
+
+    - name: tricycle
+      title: Running estimate_cycle_position from tricycle on SRTpipeline Objects
+      link: http://htmlpreview.github.io/?https://github.com/satijalab/SRTpipeline-wrappers/blob/master/docs/tricycle.html
+      reference: https://doi.org/10.1101/2021.04.06.438463
+      citation: Zheng et. al., bioRxiv 2021
+      source: https://www.bioconductor.org/packages/release/bioc/html/tricycle.html

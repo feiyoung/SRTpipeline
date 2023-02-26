@@ -1,0 +1,316 @@
+---
+title: "SRT data clustering"
+output:
+  html_document:
+  theme: united
+df_print: kable
+date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
+---
+***
+
+```{r setup, include=FALSE}
+all_times <- list()  # store the time for each chunk
+knitr::knit_hooks$set(time_it = local({
+  now <- NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res <- difftime(Sys.time(), now, units = "secs")
+      all_times[[options$label]] <<- res
+    }
+  }
+}))
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  tidy.opts = list(width.cutoff = 95),
+  message = FALSE,
+  warning = FALSE,
+  time_it = TRUE
+)
+```
+# Overview
+This tutorial demonstrates how to use `SRTpipeline` (>=0.1.0) to analyze a spatially-resolved transcriptomics (SRT) data from seqFISH platform. The analytical pipelines are similar to the `SRTpipeline` workflow for Visium SRT analysis. We emphases how to use SC-MEB model for spatial clustering and its followed applications. This tutorial will cover the following tasks, which we believe will be common for many spatial analyses:
+
+* Normalization
+* Dimension reduction
+* Spatial clustering
+* Detecting spatially-variable features
+* DEG analysis
+* Spatial trajectory inference
+* Visualization
+
+First, we load `SRTpipeline`.
+```{r init}
+library(SRTpipeline)
+```
+
+
+# Dataset
+For this tutorial, we will introduce how to create a `SRTProject` object with single SRT sample using SRTpipeline that includes an introduction to common analytical workflows for a single data batch.
+Here, we will be taking  a spatial transcriptomics dataset for mouse embryo as an example. 
+There are 23194  spots and 351 genes that were sequenced on the seqFISH platform. Our preprocessed data can be downloaded [here](https://github.com/feiyoung/PRECAST/blob/main/vignettes_data/).
+
+We  download the data to the current working path for the followed analysis by the following command:
+```{r eval = FALSE}
+githubURL <- "https://github.com/feiyoung/PRECAST/blob/main/vignettes_data/Embryo3_seqFISH.rds?raw=true"
+# download.file(githubURL,"Embryo3_seqFISH.rds",mode='wb')
+```
+Then load to R. The data is saved in a Seurat object named `Embryo3_seqFISH.rds`.
+```{r  eval = FALSE}
+load("Embryo3_seqFISH.rds")
+```
+
+# Pre-processing workflow
+
+## Create a SRTProject object
+
+First, we show how to create a SRTProject object step by step.
+
+```{r  eval = FALSE}
+## create count matrix list: note each component has a name, i.e., `embryo3`.
+count_matrix <- seu_em3[['RNA']]@counts
+cntList <- list(embryo3=count_matrix)
+
+## create spatial coordinate matrix 
+coordList <- list(cbind(seu_em3$x_global, seu_em3$y_global))
+
+## create metadata list
+meta.data <- seu_em3@meta.data
+metadataList <- list(meta.data)
+
+## create meta data for each data batches. Here we only have one data batch.
+sampleMetadata <- data.frame(species="Mouse", tissues=c('Embryo'))
+row.names(sampleMetadata) <- names(cntList)
+
+## Name of this project
+projectName <- "Embryo3"
+
+rm(seu_em3)
+```
+
+Next, we start creating SRTProject object. We can print the basic information of this object, including  three parts. The first part has the class of this object, outputPath of data that require to output, h5filePath that save the memory-cusuming data (i.e., count, logcount, ...). The second part is about the datasets basic information, such as how many data batches(sample) and the data names, sample meta data (sampleColData) and meta data for each spot (cellMetaData). The last part is about downstream analyses information that is empty when this object created.
+```{r  eval = FALSE}
+SRTProj <- CreateSRTProject(cntList, coordList, projectName =projectName, metadataList,
+    sampleMetadata)
+SRTProj
+```   
+
+## Normalizing the data
+After creating the SRTProject, the next step is to normalize the data.  To save RAM memory, normalized values are stored in disk as a `h5file`.
+```{r  eval = FALSE}
+SRTProj <- normalizeSRT(SRTProj, force = T)
+```
+Because seqFISH technology is based on target-genes, we do not select genes but use all the targeted genes by the argument `use_custom_features`. Then the custom features will be regarded as variable features for the followed analyses.
+```{r  eval = FALSE}
+geneNames <- row.names(SRTProj@geneMetaData)
+SRTProj <- selectVariableFeatures(SRTProj, use_custom_features=geneNames)
+SRTProj
+```
+
+Calculate the adjcence matrix
+```{r  eval = FALSE}
+## Obtain adjacence matrix
+SRTProj <- AddAdj(SRTProj, platform = "Other", radius.upper=12)
+
+```
+Visualize
+```{r, eval = FALSE}
+selectFeatures <- row.names(SRTProj@geneMetaData)[1:2]
+EachExprSpaHeatMap(SRTProj, features=selectFeatures, title_name=T, quantVec = c(0.90,0.90))
+```
+
+
+
+
+
+
+# Dimension reduction
+
+PCA is the most popular dimension reduction technique in single cell RNA sequencing (scRNA-seq) data and SRT　data because of its simplicity, computational efficiency, and relatively comparable performance. SRTpipeline provided three versions of PCA: standard PCA (PCA), approximated PCA (APCA),  and weighted PCA (WPCA) by the function `AddPCA` with default version as APCA for fastest computation. The 15-dimensional PCs are extracted by default, and users can use their own values. 
+
+After running `AddPCA`, we would see the output of `SRTProj` includes `PCA` in the `Low-dimensional embeddings` field.
+```{r, eval = FALSE}
+## APCA
+SRTProj <- AddPCA(SRTProj, n_comp=15)
+#accurate PCA
+
+#SRTProj <- AddPCA(SRTProj, Method='PCA')
+
+#weighted PCA
+
+# SRTProj <- AddPCA(SRTProj, Method='WPCA')
+SRTProj
+```
+
+# Clustering using SC-MEB
+
+Some SRT clustering methods use Markov random field to model  clusters of spots, such as SC-MEB and DR-SC. These approaches work extremely well for data with spatial smoothness and are standard practice in SRT data. For this reason, SRTpipeline uses existing state-of-the-art clustering methods from SRT packages for clustering.
+
+We have had the most success using the  Markov random field model implemented by SC-MEB. In SRTpipeline, SC-MEB clustering is performed using the ` Cluster_SCMEB()` function.
+```{r, eval = FALSE}
+SRTProj <- Cluster_SCMEB(SRTProj, K= 25, reduction = "PCA")
+SRTProj
+```
+
+
+## Visualization
+To run tSNE in SRTpipeline we use the AddTSNE() function.
+```{r, eval = FALSE}
+SRTProj <- AddTSNE(SRTProj, n_comp = 2, reduction='PCA')
+cols_cluster <- c(chooseColors(palettes_name="Blink 23",n_colors = 23), "red4", "green4")
+p_pca_tsne2 <- EmbedPlot(SRTProj, item='cluster', plotEmbeddings = 'tSNE', cols=cols_cluster, legend.position='right')
+```
+
+To run UMAP in SRTpipeline we use the AddUMAP() function.
+```{r, eval = FALSE}
+SRTProj <- AddUMAP(SRTProj, n_comp = 2, reduction='PCA')
+p_pca_umap2 <- EmbedPlot(SRTProj, item='cluster', plotEmbeddings = 'UMAP', cols=cols_cluster, legend.position='right', axis_names=c("UMAP1", "UMAP2"))
+```
+
+Next, we merge all plots into one figure.
+```{r, eval = FALSE}
+p_all <- drawFigs(list(p_pca_tsne2, p_pca_umap2), layout.dim = c(1,2), common.legend = TRUE)
+p_all
+```
+
+To save the plot, we can use `write_fig()` function.
+```{r, eval = FALSE}
+write_fig(p_all, filename = 'SCMEB_plots.png')
+```
+
+
+Except for the embedding plots, SRTpipeline also provides a variaty of visualization functions.
+First, we visualize the spatial distribution of cluster labels that shows the layer structure.
+```{r, eval = FALSE}
+## choose colors to function chooseColors
+EachClusterSpaHeatMap(SRTProj, cols=cols_cluster, legend.position='right',base_size=16, pt_size=0.4)
+# remove the border
+# EachClusterSpaHeatMap(SRTProj, cols=cols, legend.position='right',base_size=16, border_col='white')
+```
+
+We plotted the heatmap of Pearson’s correlation coefcients of the PCA embeddings among
+the detected domains shows the good separation of the estimated embeddings across
+domains and the correlations between deeper layers were high, e.g., there were high
+correlations between domain 2 and 3, while correlations among the separated layers were low, i.e., domain 1 and 4.
+
+```{r, eval = FALSE}
+CCHeatMap(SRTProj, reduction = 'PCA', grp_color=cols_cluster, ncol.legend=4)
+```
+
+After adding the quantities for data visualization, the `SRTProject` object will have more information in the downstream analyses information.
+Now, we print this `SRTProject` object to check it. We observed two components added in the slot `plotEmbeddings` (Embeddings for plotting): `tSNE` and  `UMAP`.
+```{r, eval = FALSE}
+SRTProj
+```
+
+
+# DEG analysis
+To do downstream analyses, we require to get the count data from h5file. The function `getGeneSpotData()` access the gene-by-spot count matrix and other data in `SRTProj` and then return a `SpatialExperiment` object,  including two assays: counts, logcounts; rowData: from `SRTProj@geneMetaData`; colData: from `SRTProj@cellMetaData`, `SRTProj@clusters` and sample_id; reducedDim: from `SRTProj@reductions`.
+```{r, eval = FALSE}
+spe <- getGeneSpotData(SRTProj)
+spe
+```
+We perform differential expression analysis for all clusters by using `FindAllDEGs()` function, then the DE genes' information is saved in a `DataFrame` object `dat_degs`. 
+```{r, eval = FALSE}
+dat_degs <- FindAllDEGs(spe)
+dat_degs
+```
+We identify the significant DE genes by two criteria: (a) adjustd p-value less than 0.01 and (b) average log fold change greater than 1.
+
+```{r, eval = FALSE}
+degs_sig <- subset(dat_degs, p_val_adj < 0.01 & avg_log2FC>1)
+degs_sig
+```
+
+In the following, we perform gene set enrichment analysis for the DE genes of each  Domain identified by SC-MEB model using R package `gprofiler2`. 
+```{r, eval = FALSE}
+library(gprofiler2)
+termList <- list()
+for(k in 1: 25){
+  # k <- 1
+  cat("k = ", k, '\n')
+  if(sum(degs_sig$cluster==k)>0){
+    dat_degs_sub <- subset(degs_sig,  cluster==k)
+  que1 <- dat_degs_sub$gene
+  gostres <- gost(query = que1, organism = "hsapiens", correction_method='fdr')
+  termList[[k]] <- gostres
+  }
+  
+}
+head(termList[[2]]$result)
+```
+
+ To understand the functions of the identified spatial domains by DR-SC model, we compare the top significant biological process (BP)  pathways in GO database for the DE genes from Domain 2 and 3. Here, we only show to visualize the significant BP pathways and users can explore the other databases such as KEGG and HPA.
+ 
+
+```{r, eval = FALSE}
+## Most commonly used databases
+source_set <- c("GO:BP","GO:CC", "GO:MF",   'KEGG', "HPA")
+cols <- c("steelblue3", "goldenrod", "brown3", "#f98866", "#CE6DBD")
+## Here, we show GO:BP
+source1 <- "GO:BP"
+ss <- which(source_set==source1)
+ntop = 5
+names(cols) <- source_set
+pList_enrich <- list()
+for(ii in 1: 25){
+  ## ii <- 4
+  message("ii=", ii)
+  dat <- termList[[ii]]$result
+  if(!is.null(dat)){
+    dat1 <- subset(dat, term_size< 500)
+    dat1 <- get_top_pathway(dat1, ntop=ntop, source_set = source1)
+    dat1 <- dat1[complete.cases(dat1),]
+    dat1$nlog10P <- -log10(dat1$p_value)
+   
+    pList_enrich[[ii]] <-  barPlot_enrich(dat1[order(dat1$nlog10P),], source='source', 'term_name',
+                                          'nlog10P', cols=cols[source_set[ss]],base_size=14) + ylab("-log10(p-adj)")+
+      xlab("Biological terms") + ggtitle(paste0("Domain", ii))
+  }
+  
+}
+
+drawFigs(pList_enrich[c(2:3)], common.legend = T, layout.dim = c(2,1), align = 'hv')
+
+```
+
+We take out the top DE genes for each cluster for visualization. 
+```{r, eval = FALSE}
+library(dplyr)
+n <- 3
+dat_degs %>% as.data.frame %>%
+  group_by(cluster) %>%
+  top_n(n = n, wt = avg_log2FC) -> topGene
+topGene
+```
+We visualize the DE genes for each cluster group by gene-by-cell heatmap using the `GCHeatMap()` function.
+```{r, eval = FALSE}
+p1 <- EachGCHeatMap(spe, features=topGene$gene, grp_color=cols_cluster ,y_text_size=6, ncol.legend=3)
+p1
+```
+
+
+# Trajectory inference
+Next, we performed trajectory inference using the PCA embeddings and domain labels estimated by SC-MEB model. The `EmbedPlot()` function can be used to visualize the inferred pseudotime on a specified embedding. If there is only one data batch, the function `EachEmbedPlot()` plays the same role as function `EmbedPlot()`.
+```{r, eval = FALSE}
+spe <- AddTrajectory(spe, reduction = 'PCA', name='PT')
+p1 <- EmbedPlot(spe, reduction = 'PCA' ,colour_by='PT')
+p2 <- EmbedPlot(spe, reduction = 'Coord' ,colour_by='PT')
+drawFigs(list(p1, p2),layout.dim = c(1,2),common.legend = TRUE, 
+         legend.position = 'right')
+# EachEmbedPlot(spe, reduction = 'PCA', colour_by='TrajPT')
+# save(spe, SRTProj, file=paste0(SRTProj@projectMetadata$outputPath,"/SRTProj.rds"))
+# load("F:/Research paper/IntegrateDRcluster/AnalysisCode/SRTpipeline/vignettes/Embryo3/SRTProj.rds")
+```
+
+
+
+# Other downstream analyses
+
+
+<details>
+<summary>**Session Info**</summary>
+```{r}
+sessionInfo()
+```

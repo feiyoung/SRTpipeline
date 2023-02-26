@@ -1,0 +1,390 @@
+---
+title: "A basic overview of multiple data analysis"
+output:
+  html_document:
+  theme: united
+df_print: kable
+date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
+---
+***
+
+```{r setup, include=FALSE}
+all_times <- list()  # store the time for each chunk
+knitr::knit_hooks$set(time_it = local({
+  now <- NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res <- difftime(Sys.time(), now, units = "secs")
+      all_times[[options$label]] <<- res
+    }
+  }
+}))
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  tidy.opts = list(width.cutoff = 95),
+  message = FALSE,
+  warning = FALSE,
+  time_it = TRUE
+)
+```
+
+# Overview
+This tutorial demonstrates how to use `SRTpipeline` (>=0.1.0) to analyze multiple spatially-resolved transcriptomics (SRT) data.  We emphases the workflow based on the `SRTProject` object in the `SRTpipeline` package. This tutorial will cover the following tasks, which we believe will be common for many SRT data analyses:
+
+* Normalization
+* Feature selection
+* Spatial clustering
+* Data integration
+* Batch-corrected gene expression
+* DEG analysis
+* Spatial trajectory inference
+* Visualization
+
+First, we load `SRTpipeline` package.
+```{r init}
+library(SRTpipeline)
+set.seed(2023) # set a random seed for reproducibility
+```
+
+
+
+
+# Dataset
+For this tutorial, we will introduce how to create a `SRTProject` object with multiple SRT samples using SRTpipeline that includes an introduction to common analytical workflows for multiple data batches.
+Here, we will be taking spatial transcriptomics dataset for mouse liver as an example.
+There are eight tissue slices with 450~700  spots and 8500~9500 genes that were sequenced on the ST platform. Our preprocessed data can be downloaded [here](https://github.com/feiyoung/PRECAST/tree/main/vignettes_data/), and the raw data can be found [here](https://zenodo.org/record/4399655).
+
+
+
+Next, we  download the data to the current working path for the followed analysis by the following command:
+```{r eval= TRUE}
+seuList <- readRDS('seuList_liver8.RDS')                 
+
+```
+
+# Pre-processing workflow
+## Prepare SRTProject
+
+
+Then load to R. 
+```{r  eval = FALSE}
+
+n_sample <- length(seuList)
+library(Seurat)
+## create count matrix list
+cntList <- list()
+## create spatial coordinate matrix 
+coordList <- list()
+## create metadata list
+metadataList <- list()
+
+for(r in 1: n_sample){
+  # r <- 1
+  message('r = ', r)
+  seu <- seuList[[r]]
+  sp_count <- seu@assays$RNA@counts
+  meta.data <- seu@meta.data
+  row.names(meta.data) <- colnames(sp_count)
+  cntList[[r]] <- sp_count
+  metadataList[[r]] <- meta.data
+  coordList[[r]] <- cbind(row=seu$row, col=seu$col)
+}
+names(cntList) <- paste0("Liver", 1:n_sample) # Note each component in count matrix list has a name.
+## create meta data for each data batches.
+sampleMetadata <- data.frame(species=rep("Mouse", n_sample),
+                             tissues=rep('Liver', n_sample))
+row.names(sampleMetadata) <- names(cntList)
+## Name of this project
+projectName <- "Liver8"
+```
+
+
+## Create a SRTProject object
+We start creating SRTProject object. Filter out the genes less than 20 spots with  nonzero read counts and the spots less than 20  genes with nonzero read counts.
+```{r  eval = FALSE}
+SRTProj <- CreateSRTProject(cntList, coordList, projectName =projectName, metadataList,
+    sampleMetadata, min.spots = 20, min.genes = 20)
+SRTProj
+```
+
+
+# Normalizing the data
+After removing unwanted cells and genes from the dataset, the next step is to normalize the data.  To save RAM memory, normalized values are stored in disk as a `h5file`.
+```{r  eval = FALSE}
+SRTProj <- normalizeSRT(SRTProj, normalization.method='LogNormalize')
+```
+
+# Feature selection
+We next select a subset of genes that exhibit high spot-to-spot variation in the dataset (i.e, they are highly expressed in some spots, and lowly expressed in others). It has been  found that focusing on these genes in downstream analysis helps to highlight biological signal in single-cell datasets [here](https://www.nature.com/articles/nmeth.2645).
+
+Then we choose variable features. The default number of variable features is 2,000, and users can change it using argument `nfeatures`. The default type is highly variable genes (HVGs), but users can use spatially variable genes by seting `type='SVGs'`, then `SPARK-X` will be used to choose SVGs.
+
+```{r  eval = FALSE}
+SRTProj <- selectVariableFeatures(SRTProj,nfeatures = 2000, type = "HVGs", method='vst')
+SRTProj
+```
+
+Calculate the adjcence matrix
+```{r  eval = FALSE}
+## Obtain adjacency matrix
+SRTProj <- AddAdj(SRTProj, platform = "ST")
+
+```
+
+# Dimension reduction 
+
+PCA is the most popular dimension reduction technique in single cell RNA sequencing (scRNA-seq) data and SRT　data because of its simplicity, computational efficiency, and relatively comparable performance. SRTpipeline provided three versions of PCA: standard PCA (PCA), approximated PCA (APCA),  and weighted PCA (WPCA) by the function `AddPCA` with default version as APCA for fastest computation. The 15-dimensional PCs are extracted by default, and users can use their own values.
+
+After running `AddPCA`, we would see the output of `SRTProj` includes `PCA` in the `Low-dimensional embeddings` field.
+```{r, eval = FALSE}
+## APCA
+SRTProj <- AddPCA(SRTProj, n_comp=15)
+
+#accurate PCA
+#SRTProj <- AddPCA(SRTProj, Method='PCA')
+
+#weighted PCA
+# SRTProj <- AddPCA(SRTProj, Method='WPCA')
+SRTProj
+```
+# Data clustering and integration analysis using iSC.MEB model 
+`iSC.MEB` model achieves joint clustering and alignment by integration analysis for multiple samples.
+Some SRT clustering methods use Markov random field to model  clusters of spots. These approaches work extremely well when the spots have strong spatial dependence.  `iSC.MEB` extracts the micro-environment related embeddings and aligned embeddings.
+The  micro-environment related  and aligned embeddings are saved in the slot `reductions$microEnv.iSC.MEB` and `reductions$aligned.iSC.MEB`, and the spatial clusters are saved in the slot `clusters`.
+
+```{r, eval = FALSE}
+SRTProj <- Integrate_iSCMEB(SRTProj, K= 6, reduction = "PCA")
+SRTProj
+```
+
+
+# Visualization
+## SRT embeddings
+To check the performance of integration, we visualize the inferred clusters and data batches on the two-dimensional tSNEs. First, we use `AddTSNE()` function to calculate the two-dimensional tSNEs based on the `aligned.iSC.MEB` embeddings.
+```{r, eval = FALSE}
+SRTProj <- AddTSNE(SRTProj, n_comp = 2, reduction='aligned.iSC.MEB')
+```
+We visualized the inferred clusters and data batches. The tSNE plot showed the domain clusters were well segregated and data batches were well mixed.
+```{r, eval = FALSE}
+cols_cluster <- chooseColors(n_colors = 6)
+cols_batch <- chooseColors(palettes_name = 'Light 13',n_colors = 8)
+p_tsne2_cluster <- EmbedPlot(SRTProj, item='cluster', plotEmbeddings = 'tSNE', cols=cols_cluster, legend.position='right', pt_size=0.2)
+p_tsne2_batch <- EmbedPlot(SRTProj, item='batch', plotEmbeddings = 'tSNE', cols=cols_batch, legend.position='right', pt_size=0.2)
+drawFigs(list(p_tsne2_cluster, p_tsne2_batch), layout.dim = c(1,2), legend.position = 'right')
+```
+
+## Spatial heatmap to show the clustering performance
+Except for the embedding plots, SRTpipeline also provides a variaty of visualization functions.
+First, we visualize the spatial distribution of cluster labels that shows the tissue structure for all data batches.
+```{r, eval = FALSE}
+
+p12 <- EachClusterSpaHeatMap(SRTProj, cols=cols_cluster, legend.position='bottom',base_size=12,
+                  pt_size=2, layout.dim=c(2,4), nrow.legend=1)
+p12
+
+```
+
+By setting `combine =FALSE`, this function will return a list of ggplot2 objects, thus user can revise each plot. In addtion, we can also plot some of data batches that are interested.
+```{r, eval = FALSE}
+pList <- EachClusterSpaHeatMap(SRTProj, cols=cols_cluster, legend.position='bottom',base_size=12,
+                  pt_size=0.5, layout.dim=c(2,4), nrow.legend=1, combine=FALSE)
+EachClusterSpaHeatMap(SRTProj, batch=1:4, title_name='iSC.MEB: ',
+                      cols=cols_cluster, legend.position='right',base_size=12,
+                  pt_size=2, layout.dim=c(2,2))
+```
+
+
+## RGB plot to show the embedding performance
+Next, we summarized the inferred embeddings for biological eﬀects
+between spatial domain types (the slot `reductions`) using three components from either tSNE or UMAP and visualized the resulting tSNE/UMAP components with red/green/blue (RGB) colors in the RGB plot.
+
+The resulting RGB plots from `iSC.MEB` showed the structure organization of the mouse liver tissue, and `iSC.MEB` provided fast transitions across  portal vein and central vein domains.
+```{r, eval = FALSE}
+SRTProj <- AddTSNE(SRTProj, n_comp = 3, reduction='aligned.iSC.MEB')
+p_tsne3<- EachRGBSpaHeatMap(SRTProj, plot_type = "tSNE", pt_size=1 ,title_name="",
+                           layout.dim=c(2,4))
+p_tsne3
+```
+
+To run UMAP in SRTpipeline we use the `AddUMAP()` function. Frist, we evaluate the two-dimensional UMAPs.
+```{r, eval = FALSE}
+SRTProj <- AddUMAP(SRTProj, n_comp = 2, reduction='aligned.iSC.MEB')
+p_umap2_cluster <- EmbedPlot(SRTProj, item='cluster', plotEmbeddings = 'UMAP', 
+                     cols= cols_cluster, legend.position='bottom')
+p_umap2_batch <- EmbedPlot(SRTProj, item='batch', plotEmbeddings = 'UMAP', 
+                     cols= cols_batch, legend.position='bottom')
+drawFigs(list(p_umap2_cluster, p_umap2_batch), layout.dim = c(1,2), 
+         legend.position = 'bottom')
+```
+
+Then, we evaluate the three-dimensional UMAPs.
+```{r, eval = FALSE}
+SRTProj <- AddUMAP(SRTProj, n_comp = 3, reduction='aligned.iSC.MEB')
+p_umap3<- EachRGBSpaHeatMap(SRTProj, plot_type = "UMAP", layout.dim=c(2,4),
+                        pt_size=1.2 ,title_name="UMAP: ")
+p_umap3
+```
+
+To save the plot, we can use `write_fig()` function.
+```{r, eval = FALSE}
+write_fig(p_umap3, filename = 'iSCMEB_p_umap3.png',width =14, height =11)
+```
+
+Moreover, we can visualize the microenvironment effects on the spatial coordinates.
+Then, we evaluate the three-dimensional UMAPs based on `microEnv.iSC.MEB`.
+```{r, eval = FALSE}
+# save the previous calculated UMAP3
+umap3_cluster <- SRTProj@plotEmbeddings$UMAP3
+SRTProj <- AddUMAP(SRTProj, n_comp = 3, reduction='microEnv.iSC.MEB')
+p_umap3_micro <- EachRGBSpaHeatMap(SRTProj, plot_type = "UMAP", layout.dim=c(2,4),
+                        pt_size=1.2 ,title_name="mircoEnv: ")
+p_umap3_micro
+```
+
+
+## Cell-by-cell heatmap to show the relation of spatial domains
+We plotted the heatmap of Pearson’s correlation coefcients of the estimated embeddings among
+the detected domains shows the good separation of the estimated embeddings across
+domains and the high correlations between domains with similarity.
+
+```{r, eval = FALSE}
+p_cc <- CCHeatMap(SRTProj, reduction = 'aligned.iSC.MEB', grp_color=cols_cluster)
+p_cc
+```
+
+After adding the quantities for data visualization, the `SRTProject` object will have more information in the downstream analyses information.
+Now, we print this `SRTProject` object to check it. We observed two components added in the slot `plotEmbeddings` (Embeddings for plotting): `tSNE`, `tSNE3`, `UMAP` and `UMAP3`.
+```{r, eval = FALSE}
+SRTProj
+```
+
+
+
+
+# Combined DEG analysis
+After fitting the integration model `iSC.MEB`, we could obatin the batch corrected log-normalized gene expression data by using function `getIntegratedData()`.
+
+```{r, eval = FALSE}
+speInt <- getIntegratedData(SRTProj, Method='iSC.MEB', species="Mouse")
+
+```
+
+After obtain the spatial cluster labels using a clustering model (i.e., `iSC.MEB`), we can perform differentially expression analysis. First, we can detect the DE genes using function `FindDEGs` for only one cluster, i.e., cluster 3.
+```{r, eval = FALSE}
+dat_deg <- FindDEGs(speInt, cluster1='3')
+subset(dat_deg, avg_log2FC >0.1)
+```
+We perform differential expression analysis for all clusters by using `FindAllDEGs()` function, then the DE genes' information is saved in a data.frame object `dat_degs`.
+```{r, eval = FALSE}
+dat_degs <- FindAllDEGs(speInt)
+dat_degs
+```
+We identify the significant DE genes by two criteria: (a) adjustd p-value less than 0.01 and (b) average log fold change greater than 0.15.
+
+```{r, eval = FALSE}
+degs_sig <- subset(dat_degs, p_val_adj < 0.01 & avg_log2FC>0.15)
+degs_sig
+```
+
+In the following, we perform gene set enrichment analysis for the DE genes of each spatial  Domain identified by `iSC.MEB` model using R package `gprofiler2`.
+```{r, eval = FALSE}
+library(gprofiler2)
+termList <- list()
+for(k in 1: 6){
+  # k <- 1
+  if(sum(degs_sig$cluster==k)> 0){
+    cat("k = ", k, '\n')
+  dat_degs_sub <- subset(degs_sig,  cluster==k)
+
+  que1 <- dat_degs_sub$gene
+  gostres <- gost(query = que1, organism = "hsapiens", correction_method='fdr')
+  termList[[k]] <- gostres
+  }
+  
+}
+head(termList[[1]]$result)
+```
+
+To understand the functions of the identified spatial domains by `iSC.MEB` model, we compare the top significant biological process (BP)  pathways in GO database for the DE genes from Domain 1 and 4. Here, we only  show the significant BP pathways and users can explore the other databases such as KEGG and HPA.
+
+
+```{r, eval = FALSE}
+## Most commonly used databases
+source_set <- c("GO:BP","GO:CC", "GO:MF",   'KEGG', "HPA")
+cols <- c("steelblue3", "goldenrod", "brown3", "#f98866", "#CE6DBD")
+## Here, we show GO:BP
+source1 <- "GO:BP"
+ss <- which(source_set==source1)
+ntop = 5
+names(cols) <- source_set
+pList_enrich <- list()
+for(ii in 1: 5){
+  ## ii <- 3
+  message("ii=", ii)
+  gostres2 <- termList[[ii]]
+  if(!is.null(gostres2)){
+    dat1 <- subset(gostres2$result, term_size< 500)
+  dat1 <- get_top_pathway(dat1, ntop=ntop, source_set = source1)
+  dat1 <- dat1[complete.cases(dat1),]
+  dat1$nlog10P <- -log10(dat1$p_value)
+
+  pList_enrich[[ii]] <-  barPlot_enrich(dat1[order(dat1$nlog10P),], source='source', 'term_name',
+                                        'nlog10P', cols=cols[source_set[ss]],base_size=14) + ylab("-log10(p-adj)")+
+    xlab("Biological terms") + ggtitle(paste0("Domain", ii))
+  }
+  
+}
+drawFigs(pList_enrich[c(1,4)], layout.dim = c(2,1), common.legend = T, align='hv')
+
+```
+
+We take out the top DE genes for each cluster for visualization.
+```{r, eval = FALSE}
+
+library(dplyr)
+n <- 5
+dat_degs %>% as.data.frame %>%
+  group_by(cluster) %>%
+  top_n(n = n, wt = avg_log2FC) -> topGene
+topGene
+```
+We visualize the DE genes for each cluster group by gene-by-cell heatmap using the `GCHeatMap()` function.
+```{r, eval = FALSE}
+
+p1 <- GCHeatMap(speInt, features=topGene$gene, grp_color=cols_cluster, y_text_size=12)
+p1
+
+```
+
+
+# Trajectory inference
+Next, we performed trajectory inference using the aligned embeddings and domain labels estimated by iSC.MEB model.
+```{r, eval = FALSE}
+speInt <- AddTrajectory(speInt, reduction = 'aligned.iSC.MEB')
+p1 <- EmbedPlot(speInt, reduction = 'aligned.iSC.MEB' ,colour_by='PT')
+p2 <- EmbedPlot(speInt, reduction = 'tSNE' ,colour_by='PT')
+drawFigs(list(p1, p2),layout.dim = c(1,2),common.legend = TRUE, 
+         legend.position = 'right')
+
+```
+
+Visualize the inferred pseudotime on the spatial coordinates for each data batch.
+```{r, eval = FALSE}
+p_spa <- EachEmbedPlot(speInt, reduction = 'Coord' ,colour_by='PT', layout.dim = c(2, 4))
+p_spa 
+# save(SRTProj,  file=paste0(SRTProj@projectMetadata$outputPath,"/SRTProj.rds"))
+# load("F:/Research paper/IntegrateDRcluster/AnalysisCode/SRTpipeline/vignettes/Liver8/SRTProj.rds")
+
+```
+
+# Other downstream analyses
+
+
+<details>
+  <summary>**Session Info**</summary>
+```{r}
+sessionInfo()
+```
+</details>

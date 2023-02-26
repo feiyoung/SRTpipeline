@@ -1,0 +1,52 @@
+Package: SRTpipeline
+Type: Package
+Title: Spatial Transcriptomics Tools Based on A Series of Our Developed Methods
+Version: 0.1.1
+Authors@R: 
+    c(person(given = "Wei",
+             family = "Liu",
+             role = c("aut", "cre"),
+             email = "wei.liu@duke-nus.edu.sg"),
+      person(given = "Yi",
+             family = "Yang",
+             role = c("aut")),
+      person(given = "Xu",
+             family = "Liao",
+             role = c("aut")),
+      person(given = "Xiao",
+             family = "Zhang",
+             role = c("aut")),
+      person(given = "Jin",
+             family = "Liu",
+             role = "aut"))
+Author: Wei Liu [aut, cre], Yi Yang [aut], Xu Liao [aut], Xiao Zhang [aut], Jin Liu [aut]
+Maintainer: Wei Liu <wei.liu@duke-nus.edu.sg>
+Description: SRTpipeline is a powerful and easy-to-use R package for processing and analyzing spaitally resolved transcriptomics (SRT) data by providing  step-by-step tutorials. 
+    SRTpipeline integrates a series of our developed methods and commonly used analyses tools.
+    SRTpipeline is able to handle single data batch and  multiple data batches by considering the non-cellular effects such as batch effects.
+License: What license is it unde
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    SC.MEB,
+    DR.SC,
+    PRECAST,
+    Seurat,
+    S4Vectors,
+    dplyr
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+URL: https://github.com/feiyoung/SRTpipeline
+BugReports: https://github.com/feiyoung/SRTpipeline/issues
+RoxygenNote: 7.1.2
+Collate: 
+    'embeddings.R'
+    'example.R'
+    'main.R'
+    'model_newinterface.R'
+    'setClass.R'
+    'utility.R'
+    'downstream.R'
+    'visualization.R'
