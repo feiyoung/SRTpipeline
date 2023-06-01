@@ -16,7 +16,7 @@
 # build_site()
 # build_home() #
 # build_reference()
-# build_article("get_started")
+# build_article("Installation")
 # build_article("integration_large_datasets")
 # build_article("multibatch_brain12_tutorial")
 # https://stackoverflow.com/questions/58744079/use-roxygen2-to-generate-namespace-a-small-example-or-template

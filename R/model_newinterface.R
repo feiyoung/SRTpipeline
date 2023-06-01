@@ -394,7 +394,7 @@ Integrate_PRECAST <- function(SRTProj,  K=NULL, q= 15, ...){
   .logDiffTime(sprintf(paste0("%s Finish results writing"), prefix), t1 = tstart, verbose = verbose)
 
   ## select the best Model
-  reslist <- PRECAST::selectModel(resList)
+  reslist <- PRECAST::SelectModel(resList)
 
 
   SRTProj@reductions[["microEnv.PRECAST"]] <-  matlist2mat(reslist$hV)

@@ -28,9 +28,9 @@ License: What license is it unde
 Encoding: UTF-8
 LazyData: true
 Imports: 
-    SC.MEB,
-    DR.SC,
-    PRECAST,
+    SC.MEB (>= 1.1),
+    DR.SC (>= 3.1.0),
+    PRECAST (>= 1.6.0),
     Seurat,
     S4Vectors,
     dplyr
